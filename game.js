@@ -18,10 +18,26 @@ const PLAYER_STATES=['idle','run','kick','jump_prep','jump','stumble','fly','dow
 const KEEPER_STATES=['idle','dive','down'];
 const images={players:{},keepers:{left:{},right:{}},ball:{}};let selectedTeam=0,cpuTeam=1,assetsReady=false;
 const assetJobs=[];
-for(const t of TEAM_DEFS){images.players[t.id]={};for(const s of PLAYER_STATES)assetJobs.push({target:images.players[t.id],key:s,src:`assets/players/${t.id}/${s}.webp`});}
-for(const side of ['left','right'])for(const s of KEEPER_STATES)assetJobs.push({target:images.keepers[side],key:s,src:`assets/keepers/${side}/${s}.webp`});
-for(const s of ['matte','glossy'])assetJobs.push({target:images.ball,key:s,src:`assets/ball/${s}.webp`});
-function loadAssets(){let done=0;loadingCount.textContent=`0 / ${assetJobs.length}`;return Promise.all(assetJobs.map(job=>new Promise(resolve=>{const img=new Image();img.onload=img.onerror=()=>{job.target[job.key]=img;done++;loadingCount.textContent=`${done} / ${assetJobs.length}`;resolve();};img.src=job.src;}))).then(()=>{assetsReady=true;startButton.disabled=false;startButton.textContent='スタート';loading.classList.add('done');});}
+for(const t of TEAM_DEFS){images.players[t.id]={};for(const s of PLAYER_STATES)assetJobs.push({target:images.players[t.id],key:s,src:`assets/players/${t.id}/${s}.png`});}
+for(const side of ['left','right'])for(const s of KEEPER_STATES)assetJobs.push({target:images.keepers[side],key:s,src:`assets/keepers/${side}/${s}.png`});
+for(const s of ['matte','glossy'])assetJobs.push({target:images.ball,key:s,src:`assets/ball/${s}.png`});
+function loadAssets(){
+  let done=0,failed=0;
+  loadingCount.textContent=`0 / ${assetJobs.length}`;
+  return Promise.all(assetJobs.map(job=>new Promise(resolve=>{
+    const img=new Image();
+    img.onload=()=>{
+      if(img.naturalWidth>0&&img.naturalHeight>0) job.target[job.key]=img;
+      else failed++;
+      done++; loadingCount.textContent=`${done} / ${assetJobs.length}`; resolve();
+    };
+    img.onerror=()=>{failed++;done++;loadingCount.textContent=`${done} / ${assetJobs.length}`;resolve();};
+    img.src=job.src;
+  }))).then(()=>{
+    if(failed){assetsReady=false;startButton.disabled=true;startButton.textContent=`画像エラー ${failed}件`;loading.classList.add('error');loading.querySelector('b').textContent='画像読み込み失敗';return;}
+    assetsReady=true;startButton.disabled=false;startButton.textContent='スタート';loading.classList.add('complete');loading.querySelector('b').textContent='画像受信完了';
+  });
+}
 function buildTeamSelect(){TEAM_DEFS.forEach((t,i)=>{const b=document.createElement('button');b.type='button';b.className='team-card'+(i===0?' selected':'');b.innerHTML=`<img src="assets/players/${t.id}/idle.webp" alt=""><span>${t.name}</span>`;b.addEventListener('click',()=>{selectedTeam=i;document.querySelectorAll('.team-card').forEach((x,n)=>x.classList.toggle('selected',n===i));});teamSelect.appendChild(b);});}
 function makePlayer(side,x,y,teamIndex){return{side,teamIndex,x,y,z:0,vx:0,vy:0,vz:0,r:24,aimX:side?-1:1,aimY:0,charge:0,kickCd:0,kickFx:0,jumpCd:0,jumpPrep:0,pendingJump:false,stun:0,down:0,inv:0,kickGuard:0}}
 function makeKeeper(side,x,y){return{side,x,y,homeX:x,homeY:y,z:0,vx:0,vy:0,vz:0,r:28,down:0,inv:0,dive:0}}
@@ -43,12 +59,12 @@ function update(dt){time=Math.max(0,time-dt);messageLife=Math.max(0,messageLife-
 function drawField(){ctx.fillStyle='#183d31';ctx.fillRect(0,0,W,H);for(let i=0;i<10;i++){ctx.fillStyle=i%2?'#1d4939':'#20503e';ctx.fillRect(i*100,TOP,100,BOTTOM-TOP)}ctx.strokeStyle='#dbeed5aa';ctx.lineWidth=5;ctx.strokeRect(45,TOP,910,BOTTOM-TOP);ctx.beginPath();ctx.moveTo(500,TOP);ctx.lineTo(500,BOTTOM);ctx.stroke();ctx.beginPath();ctx.arc(500,310,88,0,Math.PI*2);ctx.stroke();ctx.fillStyle='#cfe8dd18';ctx.fillRect(45,GOAL_TOP,95,GOAL_BOTTOM-GOAL_TOP);ctx.fillRect(860,GOAL_TOP,95,GOAL_BOTTOM-GOAL_TOP);ctx.strokeStyle='#fff';ctx.lineWidth=8;ctx.strokeRect(4,GOAL_TOP,42,GOAL_BOTTOM-GOAL_TOP);ctx.strokeRect(954,GOAL_TOP,42,GOAL_BOTTOM-GOAL_TOP)}
 function shadow(x,y,z,r){ctx.fillStyle=`rgba(0,0,0,${.28-clamp(z/600,0,.18)})`;ctx.beginPath();ctx.ellipse(x,y+r*.7,r*(1-z/900),r*.28*(1-z/900),0,0,Math.PI*2);ctx.fill()}
 function playerState(p){if(p.down>0)return p.z>8||Math.hypot(p.vx,p.vy)>150?'fly':'down';if(p.stun>0)return'stumble';if(p.kickFx>0)return'kick';if(p.jumpPrep>0)return'jump_prep';if(p.z>1)return'jump';if(Math.hypot(p.vx,p.vy)>55)return'run';return'idle'}
-function drawSprite(img,x,y,z,state,flip=false,keeper=false){if(!img||!img.complete)return;let maxH=keeper?108:116,maxW=keeper?130:145;if(state==='run'){maxH=125;maxW=155}else if(state==='fly'||state==='down'){maxH=92;maxW=155}else if(state==='kick'){maxH=122;maxW=145}else if(state==='jump'){maxH=112;maxW=130}const s=Math.min(maxW/img.naturalWidth,maxH/img.naturalHeight),dw=img.naturalWidth*s,dh=img.naturalHeight*s;ctx.save();ctx.translate(x,y-z);if(flip)ctx.scale(-1,1);ctx.drawImage(img,-dw/2,-dh+22,dw,dh);ctx.restore()}
+function drawSprite(img,x,y,z,state,flip=false,keeper=false){if(!img||!img.complete||!img.naturalWidth||!img.naturalHeight)return;let maxH=keeper?108:116,maxW=keeper?130:145;if(state==='run'){maxH=125;maxW=155}else if(state==='fly'||state==='down'){maxH=92;maxW=155}else if(state==='kick'){maxH=122;maxW=145}else if(state==='jump'){maxH=112;maxW=130}const s=Math.min(maxW/img.naturalWidth,maxH/img.naturalHeight),dw=img.naturalWidth*s,dh=img.naturalHeight*s;ctx.save();ctx.translate(x,y-z);if(flip)ctx.scale(-1,1);ctx.drawImage(img,-dw/2,-dh+22,dw,dh);ctx.restore()}
 function drawPerson(p,keeper=false){shadow(p.x,p.y,p.z,p.r);if(keeper){const side=p.side?'right':'left',state=p.down>0?'down':p.dive>0?'dive':'idle';drawSprite(images.keepers[side][state],p.x,p.y,p.z,state,false,true)}else{const state=playerState(p),team=TEAM_DEFS[p.teamIndex].id,flip=p.aimX>0;drawSprite(images.players[team][state],p.x,p.y,p.z,state,flip,false);ctx.fillStyle='#07111dcc';ctx.fillRect(p.x-35,p.y-p.z-76,70,8);ctx.fillStyle=p.side?'#ff7282':'#64b7ff';ctx.fillRect(p.x-35,p.y-p.z-76,70*p.charge,8)}}
-function drawBall(){shadow(ball.x,ball.y,ball.z,ball.r);const img=ball.special>0?images.ball.glossy:images.ball.matte;if(!img||!img.complete)return;ctx.save();ctx.translate(ball.x,ball.y-ball.z);if(ball.special<=0)ctx.rotate(ball.spin);const sq=ball.squash>0?Math.sin(ball.squash/.18*Math.PI)*.16:0,pulse=ball.special>0?1+Math.sin(performance.now()*.018)*.035:1;ctx.scale((1+sq)*pulse,(1-sq)*pulse);ctx.drawImage(img,-ball.r,-ball.r,ball.r*2,ball.r*2);ctx.restore()}
+function drawBall(){shadow(ball.x,ball.y,ball.z,ball.r);const img=ball.special>0?images.ball.glossy:images.ball.matte;if(!img||!img.complete||!img.naturalWidth||!img.naturalHeight)return;ctx.save();ctx.translate(ball.x,ball.y-ball.z);if(ball.special<=0)ctx.rotate(ball.spin);const sq=ball.squash>0?Math.sin(ball.squash/.18*Math.PI)*.16:0,pulse=ball.special>0?1+Math.sin(performance.now()*.018)*.035:1;ctx.scale((1+sq)*pulse,(1-sq)*pulse);ctx.drawImage(img,-ball.r,-ball.r,ball.r*2,ball.r*2);ctx.restore()}
 function drawHud(){ctx.fillStyle='#07111dcc';ctx.fillRect(0,0,W,76);ctx.textAlign='center';ctx.fillStyle='#fff';ctx.font='900 39px system-ui';ctx.fillText(`${score[0]}  -  ${score[1]}`,500,49);ctx.textAlign='left';ctx.font='800 18px system-ui';ctx.fillStyle='#72bdff';ctx.fillText(TEAM_DEFS[selectedTeam].name,26,43);ctx.textAlign='right';ctx.fillStyle='#ff7785';ctx.fillText(TEAM_DEFS[cpuTeam].name,974,43);ctx.textAlign='center';ctx.fillStyle='#fff8b6';ctx.font='800 18px system-ui';ctx.fillText(`${Math.ceil(time)} sec`,500,70);if(messageLife>0){ctx.font='900 52px system-ui';ctx.fillStyle='#fff';ctx.strokeStyle='#07334b';ctx.lineWidth=9;ctx.strokeText(message,500,145);ctx.fillText(message,500,145)}}
 function draw(){drawField();keepers.forEach(k=>drawPerson(k,true));players.forEach(p=>drawPerson(p));drawBall();drawHud()}
-function loop(now){if(!running)return;const dt=Math.min(.033,(now-last)/1000||.016);last=now;update(dt);draw();requestAnimationFrame(loop)}
+function loop(now){if(!running)return;try{const dt=Math.min(.033,(now-last)/1000||.016);last=now;update(dt);draw();requestAnimationFrame(loop)}catch(err){running=false;console.error(err);showMenu('ゲーム処理エラーが発生しました。ページを再読み込みしてください。');}}
 window.addEventListener('keydown',e=>{if(!keys.has(e.code))pressed.add(e.code);keys.add(e.code);if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Space'].includes(e.code))e.preventDefault()});window.addEventListener('keyup',e=>keys.delete(e.code));
 startButton.addEventListener('click',start);
 function bindButton(id,code){const b=document.getElementById(id);const on=e=>{e.preventDefault();if(!keys.has(code))pressed.add(code);keys.add(code);b.classList.add('active');try{b.setPointerCapture(e.pointerId)}catch{}};const off=e=>{e.preventDefault();keys.delete(code);b.classList.remove('active')};b.addEventListener('pointerdown',on);b.addEventListener('pointerup',off);b.addEventListener('pointercancel',off)}bindButton('kickButton','KeyJ');bindButton('jumpButton','KeyK');bindButton('chargeButton','KeyL');
