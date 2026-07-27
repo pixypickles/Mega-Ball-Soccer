@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#152238">
 <title>大玉サッカー</title>
-<link rel="stylesheet" href="style.css?v=104">
+<link rel="stylesheet" href="style.css?v=105">
 </head>
 <body>
 <div id="app">
@@ -14,11 +14,13 @@
     <div class="card">
       <div class="eyebrow">BIG BALL SOCCER</div>
       <h1>大玉サッカー</h1>
-      <p>巨大で柔らかいボールを、キックとジャンプで打ち返してゴールを狙え！</p>
-      <button id="startButton" type="button">スタート</button>
+      <p id="menuMessage">チームを選んで、巨大なボールを相手ゴールへ蹴り込もう！</p>
+      <div id="teamSelect" class="team-select" aria-label="チーム選択"></div>
+      <button id="startButton" type="button" disabled>画像読み込み中</button>
       <div class="guide">移動：左スティック　／　A：キック　B：ジャンプ　C：力溜め</div>
     </div>
   </div>
+  <div id="loading" class="loading"><b>画像受信中</b><span id="loadingCount">0 / 48</span></div>
   <div id="touchUi" hidden>
     <div id="joystick"><div id="stick"></div></div>
     <div class="buttons">
@@ -28,6 +30,6 @@
     </div>
   </div>
 </div>
-<script src="game.js?v=104"></script>
+<script src="game.js?v=105"></script>
 </body>
 </html>
