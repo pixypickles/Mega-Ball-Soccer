@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#152238">
-<title>大玉サッカー v131b</title>
+<title>大玉サッカー v132</title>
 <style>
 *{box-sizing:border-box;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#07111e;color:#fff;font-family:system-ui,-apple-system,"Noto Sans JP",sans-serif;touch-action:none}body{display:grid;place-items:center}#app{position:relative;width:min(100vw,calc(100vh * 1.3158));height:min(100vh,calc(100vw / 1.3158));background:#07111e;overflow:hidden;box-shadow:0 0 50px #000}canvas{position:absolute;left:0;top:0;display:block;width:100%;height:78.947%;background:#132b25}#menu{position:absolute;inset:0;display:grid;place-items:center;background:linear-gradient(#09192ad9,#07111ef2);padding:18px;overflow-y:auto;overscroll-behavior:contain;touch-action:pan-y;-webkit-overflow-scrolling:touch}.card{width:min(760px,96%);max-height:calc(100% - 4px);overflow-y:auto;overscroll-behavior:contain;touch-action:pan-y;-webkit-overflow-scrolling:touch;padding:24px 26px;text-align:center;border:1px solid #ffffff2b;border-radius:26px;background:#0e1d2bef;box-shadow:0 18px 70px #0009}.eyebrow{font-size:12px;letter-spacing:.32em;color:#8ddcff;font-weight:800}.card h1{font-size:clamp(34px,7vw,66px);margin:5px 0 7px;line-height:1;text-shadow:0 5px 0 #073952}.card p{line-height:1.55;color:#d9edf4;margin:12px auto;max-width:580px}.team-select{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin:14px 0}.mode-select{display:flex;justify-content:center;gap:10px;margin:10px 0 14px}.mode-card{border:2px solid #ffffff28;border-radius:999px;background:#ffffff0c;color:#fff;padding:9px 24px;font-weight:900;cursor:pointer}.mode-card.selected{border-color:#7ee7ff;background:#7ee7ff22;box-shadow:0 0 0 2px #7ee7ff33 inset}.team-card{border:2px solid #ffffff28;border-radius:14px;background:#ffffff0c;color:#fff;padding:7px 5px 8px;min-width:0;cursor:pointer}.team-swatch{display:block;width:58px;height:58px;margin:4px auto 7px;border-radius:50%;border:5px solid #fff;box-shadow:0 5px 12px #0008,inset 0 -8px 0 #0002}.team-card span{display:block;font-size:11px;font-weight:900}.team-card.selected{border-color:#ffe16a;background:#ffe16a20;box-shadow:0 0 0 2px #ffe16a44 inset}#startButton{border:0;border-radius:999px;padding:13px 52px;font-size:22px;font-weight:900;color:#07202e;background:linear-gradient(#fff48c,#ffbe3d);box-shadow:0 7px 0 #b96b15;cursor:pointer}#startButton:disabled{filter:grayscale(.8);opacity:.55;cursor:default;box-shadow:0 4px 0 #555}#startButton:not(:disabled):active{transform:translateY(5px);box-shadow:0 2px 0 #b96b15}.guide{margin-top:16px;font-size:12px;color:#9bb3bf}.loading{position:absolute;left:50%;top:18px;transform:translateX(-50%);z-index:5;padding:9px 18px;border-radius:999px;background:#08121ee8;border:1px solid #ffffff38;box-shadow:0 6px 18px #0008;display:flex;gap:12px;align-items:center;font-size:13px}.loading span{color:#ffe36d;font-weight:900}.loading.complete{background:#123d2ee8;border-color:#79e6ad}.loading.complete span{color:#9effc4}.loading.error{background:#4a171be8;border-color:#ff7d86}.loading.error span{color:#ffb6bc}#touchUi{position:absolute;left:0;right:0;top:78.947%;bottom:0;pointer-events:none;background:linear-gradient(180deg,#0b2030,#07111e);border-top:2px solid #ffffff24}#joystick{position:absolute;left:5%;top:50%;transform:translateY(-50%);width:150px;height:150px;border-radius:50%;background:#ffffff18;border:3px solid #ffffff40;pointer-events:auto}#stick{position:absolute;left:50%;top:50%;width:66px;height:66px;margin:-33px;border-radius:50%;background:#ffffffa8;box-shadow:0 5px 18px #0008}.buttons{position:absolute;right:max(1.2%,env(safe-area-inset-right));top:50%;transform:translateY(-50%) scale(.80);transform-origin:right center;width:224px;height:190px;pointer-events:none}.action{position:absolute;touch-action:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;border-radius:50%;border:3px solid #ffffff99;color:#fff;box-shadow:0 7px 16px #0007;pointer-events:auto;font-weight:900}.action b{display:block;font-size:25px;line-height:1}.action span{font-size:12px}.dash{left:64px;top:0;width:96px;height:96px;background:#6b59d6}.jump{left:0;bottom:0;width:92px;height:92px;background:#287ad3}.kick{right:0;bottom:0;width:96px;height:96px;background:#d7423e}.action.active{transform:scale(.92);filter:brightness(1.3)}@media(max-height:520px){#joystick{width:112px;height:112px;top:42%}.buttons{right:max(.2%,env(safe-area-inset-right));top:38%;transform:translateY(-50%) scale(.62);transform-origin:right center}#menu{place-items:start center;padding:8px}.card{width:min(760px,98%);max-height:calc(100% - 2px);padding:10px 12px;margin:auto 0}.eyebrow{font-size:10px}.card h1{font-size:32px;margin:2px 0 4px}.card p{margin:5px auto;line-height:1.35;font-size:13px}.team-select{margin:7px 0;gap:5px}.team-card{padding:4px 3px 5px}.team-swatch{width:42px;height:42px;border-width:4px}.team-card span{font-size:9px}#startButton{padding:9px 38px;font-size:18px}.guide{margin-top:8px;font-size:10px}.loading{top:7px;padding:6px 12px;font-size:11px}}
 
@@ -64,8 +64,8 @@ function buildTeamSelect(){
     teamSelect.appendChild(b);
   });
 }
-function makePlayer(side,x,y,teamIndex){return{side,teamIndex,x,y,z:0,vx:0,vy:0,vz:0,r:24,aimX:side?-1:1,aimY:0,kickCd:0,kickFx:0,jumpCd:0,jumpPrep:0,pendingJump:false,stun:0,down:0,inv:1.5,kickGuard:0,aiKickWait:side?1.65:0,crush:0,slide:0,slideCd:0,slideDirX:side?-1:1,slideDirY:0,slideHits:new Set(),slideBallHit:false,dash:0,dashCd:0,dashDirX:side?-1:1,dashDirY:0,dashJump:0,dropkick:0,dropkickPower:0,slidePower:2,offscreen:0,returnRun:0,returnTargetX:x,returnTargetY:y,hidden:false}}
-function makeKeeper(side,x,y){return{side,x,y,homeX:x,homeY:y,z:0,vx:0,vy:0,vz:0,r:28,down:0,stun:0,inv:0,dive:0,jumpCd:0,crush:0,offscreen:0,returnRun:0,returnTargetX:x,returnTargetY:y,hidden:false}}
+function makePlayer(side,x,y,teamIndex){return{side,teamIndex,x,y,z:0,vx:0,vy:0,vz:0,r:24,aimX:side?-1:1,aimY:0,kickCd:0,kickFx:0,jumpCd:0,jumpPrep:0,pendingJump:false,stun:0,down:0,inv:1.5,kickGuard:0,aiKickWait:side?1.65:0,crush:0,crushGhost:0,slide:0,slideCd:0,slideDirX:side?-1:1,slideDirY:0,slideHits:new Set(),slideBallHit:false,dash:0,dashCd:0,dashDirX:side?-1:1,dashDirY:0,dashJump:0,dropkick:0,dropkickPower:0,slidePower:2,offscreen:0,returnRun:0,returnTargetX:x,returnTargetY:y,hidden:false}}
+function makeKeeper(side,x,y){return{side,x,y,homeX:x,homeY:y,z:0,vx:0,vy:0,vz:0,r:28,down:0,stun:0,inv:0,dive:0,jumpCd:0,crush:0,crushGhost:0,offscreen:0,returnRun:0,returnTargetX:x,returnTargetY:y,hidden:false}}
 let ball,players,keepers,effects=[],kickoffGrace=0;
 function reset(afterGoal=false){ball={x:500,y:310,z:0,vx:0,vy:0,vz:0,r:62,spin:0,squash:0,squashAngle:Math.PI/2,special:0,powerTier:0,fieldLaunchTime:0};if(matchMode===3){players=[makePlayer(0,230,215,selectedTeam),makePlayer(0,285,310,selectedTeam),makePlayer(0,230,405,selectedTeam),makePlayer(1,770,215,cpuTeam),makePlayer(1,715,310,cpuTeam),makePlayer(1,770,405,cpuTeam)]}else if(matchMode===2){players=[makePlayer(0,255,250,selectedTeam),makePlayer(0,255,370,selectedTeam),makePlayer(1,745,250,cpuTeam),makePlayer(1,745,370,cpuTeam)]}else{players=[makePlayer(0,270,310,selectedTeam),makePlayer(1,730,310,cpuTeam)]}keepers=[makeKeeper(0,72,310),makeKeeper(1,928,310)];effects=[];kickoffGrace=afterGoal?1.25:1.8;}
 function start(){if(!assetsReady)return;cpuTeam=(selectedTeam+1+Math.floor(Math.random()*(TEAM_DEFS.length-1)))%TEAM_DEFS.length;score=[0,0];time=90;message='KICK OFF!';messageLife=1.8;reset();running=true;last=performance.now();menu.style.display='none';touchUi.hidden=false;requestAnimationFrame(loop)}
@@ -176,7 +176,7 @@ function jump(p,dashVariant=false){if(p.jumpCd||p.down||p.stun||p.z>1||p.jumpPre
 function movePlayer(p,dt,input){
   if(updateOffscreen(p,dt))return;
   p.kickCd=Math.max(0,p.kickCd-dt);p.kickFx=Math.max(0,p.kickFx-dt);p.jumpCd=Math.max(0,p.jumpCd-dt);p.slideCd=Math.max(0,p.slideCd-dt);p.dashCd=Math.max(0,p.dashCd-dt);p.dash=Math.max(0,p.dash-dt);p.dashJump=Math.max(0,p.dashJump-dt);p.dropkick=Math.max(0,p.dropkick-dt);
-  p.stun=Math.max(0,p.stun-dt);p.down=Math.max(0,p.down-dt);p.inv=Math.max(0,p.inv-dt);p.kickGuard=Math.max(0,p.kickGuard-dt);p.crush=Math.max(0,p.crush-dt);
+  p.stun=Math.max(0,p.stun-dt);p.down=Math.max(0,p.down-dt);p.inv=Math.max(0,p.inv-dt);p.kickGuard=Math.max(0,p.kickGuard-dt);p.crush=Math.max(0,p.crush-dt);p.crushGhost=Math.max(0,p.crushGhost-dt);
   if(p.slide>0){p.slide=Math.max(0,p.slide-dt);p.vx*=Math.pow(.965,dt*60);p.vy*=Math.pow(.965,dt*60)}if(p.dropkick>0){p.vx*=Math.pow(.982,dt*60);p.vy*=Math.pow(.982,dt*60)}if(p.dash>0){p.vx=p.dashDirX*650;p.vy=p.dashDirY*650}
   if(p.jumpPrep>0){p.jumpPrep-=dt;if(p.jumpPrep<=0&&p.pendingJump){const dj=p.pendingJump==='dash';p.pendingJump=false;p.vz=dj?805:735}}
   if(p.down>0){p.vx*=Math.pow(.89,dt*60);p.vy*=Math.pow(.89,dt*60)}
@@ -199,6 +199,8 @@ function cpu(p,dt){if(p.offscreen!==0||p.returnRun>0)return{x:0,y:0};
   return n
 }
 function hitPerson(p,keeper=false){if(p.hidden||p.offscreen!==0||p.returnRun>0)return;
+  // 落下球で潰された選手は、起き上がるまでボールとの当たり判定を持たない。
+  if(p.crushGhost>0)return;
   if(p.inv>0)return;
   const dx=p.x-ball.x,dy=p.y-ball.y,d=Math.hypot(dx,dy),m=p.r+ball.r;
   if(d>=m||ball.z>112+p.z)return;
@@ -212,9 +214,9 @@ function hitPerson(p,keeper=false){if(p.hidden||p.offscreen!==0||p.returnRun>0)r
   }
   const overhead=ball.vz<-90&&ball.z>p.z+48&&Math.abs(ball.x-p.x)<p.r+ball.r*.58&&Math.abs(ball.y-p.y)<p.r+ball.r*.58;
   if(overhead){
-    p.crush=.24;p.down=keeper?1.2:1.35;p.inv=p.down+.35;p.stun=0;
+    p.crush=.24;p.down=keeper?1.2:1.35;p.crushGhost=p.down;p.inv=p.down+.35;p.stun=0;
     p.z=0;p.vz=0;p.vx*=.18;p.vy*=.18;
-    ball.vz=Math.max(210,Math.abs(ball.vz)*.42);ball.vx*=.72;ball.vy*=.72;ball.squash=.22;ball.squashAngle=Math.PI/2;ball.powerTier=Math.max(ball.powerTier,1);
+    // 人では跳ね返さない。重なった全員を同じ落下中に潰し、ボールは地面まで通す。
     return;
   }
   p.x+=n.x*o*.72;p.y+=n.y*o*.72;
@@ -256,7 +258,7 @@ function hitPerson(p,keeper=false){if(p.hidden||p.offscreen!==0||p.returnRun>0)r
   }
 }
 function keeper(k,dt){if(updateOffscreen(k,dt))return;
-  k.down=Math.max(0,k.down-dt);k.stun=Math.max(0,k.stun-dt);k.inv=Math.max(0,k.inv-dt);k.jumpCd=Math.max(0,k.jumpCd-dt);k.crush=Math.max(0,k.crush-dt);
+  k.down=Math.max(0,k.down-dt);k.stun=Math.max(0,k.stun-dt);k.inv=Math.max(0,k.inv-dt);k.jumpCd=Math.max(0,k.jumpCd-dt);k.crush=Math.max(0,k.crush-dt);k.crushGhost=Math.max(0,k.crushGhost-dt);
   if(k.down>0){k.x+=k.vx*dt;k.y+=k.vy*dt;k.vx*=Math.pow(.9,dt*60);k.vy*=Math.pow(.9,dt*60)}
   else if(k.stun>0){k.x+=k.vx*dt;k.y+=k.vy*dt;k.vx*=Math.pow(.82,dt*60);k.vy*=Math.pow(.82,dt*60);k.dive=Math.max(k.dive,.12)}
   else{
