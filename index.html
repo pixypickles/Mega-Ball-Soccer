@@ -44,6 +44,47 @@ const W=1000,H=600,TOP=92,BOTTOM=535,GOAL_TOP=122,GOAL_BOTTOM=505,GOAL_HEIGHT=13
 const keys=new Set(),pressed=new Set();let running=false,last=0,score=[0,0],time=90,message='',messageLife=0;
 let joy={x:0,y:0,pointer:null};const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 const norm=(x,y)=>{const d=Math.hypot(x,y)||1;return{x:x/d,y:y/d}};
+// Web Audio APIで効果音をリアルタイム合成する（外部音声ファイル不要）。
+let audioCtx=null,masterGain=null,noiseBuffer=null;
+const soundGate={wall:0,ground:0,hit:0};
+function initAudio(){
+  if(!audioCtx){
+    const AC=window.AudioContext||window.webkitAudioContext;if(!AC)return false;
+    audioCtx=new AC();masterGain=audioCtx.createGain();masterGain.gain.value=.34;masterGain.connect(audioCtx.destination);
+    noiseBuffer=audioCtx.createBuffer(1,Math.floor(audioCtx.sampleRate*.5),audioCtx.sampleRate);
+    const d=noiseBuffer.getChannelData(0);for(let i=0;i<d.length;i++)d[i]=Math.random()*2-1;
+  }
+  if(audioCtx.state==='suspended')audioCtx.resume();return true;
+}
+function tone(freq,duration=.1,type='sine',volume=.25,slide=1,delay=0){
+  if(!initAudio())return;const t=audioCtx.currentTime+delay,o=audioCtx.createOscillator(),g=audioCtx.createGain();
+  o.type=type;o.frequency.setValueAtTime(Math.max(30,freq),t);o.frequency.exponentialRampToValueAtTime(Math.max(30,freq*slide),t+duration);
+  g.gain.setValueAtTime(.0001,t);g.gain.exponentialRampToValueAtTime(Math.max(.0002,volume),t+.008);g.gain.exponentialRampToValueAtTime(.0001,t+duration);
+  o.connect(g);g.connect(masterGain);o.start(t);o.stop(t+duration+.02);
+}
+function noise(duration=.08,volume=.18,cutoff=900,delay=0){
+  if(!initAudio())return;const t=audioCtx.currentTime+delay,src=audioCtx.createBufferSource(),f=audioCtx.createBiquadFilter(),g=audioCtx.createGain();
+  src.buffer=noiseBuffer;f.type='lowpass';f.frequency.value=cutoff;g.gain.setValueAtTime(Math.max(.0002,volume),t);g.gain.exponentialRampToValueAtTime(.0001,t+duration);
+  src.connect(f);f.connect(g);g.connect(masterGain);src.start(t);src.stop(t+duration+.02);
+}
+function sfx(name,power=1){
+  const now=performance.now()/1000;if(name in soundGate&&now<soundGate[name])return;if(name in soundGate)soundGate[name]=now+.055;
+  const v=clamp(power,.35,1.5);
+  if(name==='ui'){tone(520,.045,'square',.10,1.18);}
+  else if(name==='start'){tone(760,.09,'square',.18,.94);tone(980,.13,'square',.20,.92,.11);}
+  else if(name==='kick'){noise(.055,.13*v,1200);tone(155,.11,'triangle',.27*v,.56);}
+  else if(name==='powerKick'){noise(.09,.22*v,1600);tone(115,.18,'sawtooth',.35*v,.42);tone(420,.10,'square',.13*v,.7);}
+  else if(name==='jump'){tone(190,.10,'sine',.13,1.75);}
+  else if(name==='dash'){noise(.10,.10,1500);tone(105,.12,'sawtooth',.13,.72);}
+  else if(name==='hit'){noise(.075,.16*v,650);tone(92,.12,'triangle',.21*v,.68);}
+  else if(name==='wall'){tone(125,.08,'square',.14*v,.72);noise(.045,.08*v,800);}
+  else if(name==='ground'){tone(82,.09,'sine',.13*v,.72);}
+  else if(name==='goal'){
+    noise(.32,.11,2400);[523,659,784,1047].forEach((f,i)=>tone(f,.22,'square',.16,1,i*.085));
+    tone(131,.45,'sawtooth',.12,1,.05);
+  }else if(name==='lose'){tone(330,.18,'triangle',.14,.8);tone(247,.25,'triangle',.16,.72,.18);}
+  else if(name==='end'){tone(660,.12,'square',.14,.9);tone(880,.2,'square',.16,.92,.13);}
+}
 const TEAM_DEFS=[
   {color:'#2d7ff9',accent:'#ffffff',pattern:'blueWhite'},
   {color:'#e44747',accent:'#ffe2e2'},
@@ -60,7 +101,7 @@ function buildTeamSelect(){
     const sw=document.createElement('span'); sw.className='team-swatch'; sw.style.background=t.pattern==='blueWhite'?'repeating-linear-gradient(90deg,#1676df 0 12px,#fff 12px 24px)':t.pattern==='pinkNavy'?'repeating-linear-gradient(0deg,#24345f 0 14px,#ec62a4 14px 28px)':t.color;
     const label=document.createElement('span'); label.textContent=`カラー ${i+1}`;
     b.append(sw,label);
-    b.addEventListener('click',()=>{selectedTeam=i;document.querySelectorAll('.team-card').forEach((x,n)=>x.classList.toggle('selected',n===i));});
+    b.addEventListener('click',()=>{sfx('ui');selectedTeam=i;document.querySelectorAll('.team-card').forEach((x,n)=>x.classList.toggle('selected',n===i));});
     teamSelect.appendChild(b);
   });
 }
@@ -68,7 +109,7 @@ function makePlayer(side,x,y,teamIndex){return{side,teamIndex,x,y,z:0,vx:0,vy:0,
 function makeKeeper(side,x,y){return{side,x,y,homeX:x,homeY:y,z:0,vx:0,vy:0,vz:0,r:28,down:0,stun:0,inv:0,dive:0,jumpCd:0,crush:0,crushGhost:0,offscreen:0,returnRun:0,returnTargetX:x,returnTargetY:y,hidden:false}}
 let ball,players,keepers,effects=[],kickoffGrace=0;
 function reset(afterGoal=false){ball={x:500,y:310,z:0,vx:0,vy:0,vz:0,r:62,spin:0,squash:0,squashAngle:Math.PI/2,special:0,powerTier:0,fieldLaunchTime:0};if(matchMode===3){players=[makePlayer(0,230,215,selectedTeam),makePlayer(0,285,310,selectedTeam),makePlayer(0,230,405,selectedTeam),makePlayer(1,770,215,cpuTeam),makePlayer(1,715,310,cpuTeam),makePlayer(1,770,405,cpuTeam)]}else if(matchMode===2){players=[makePlayer(0,255,250,selectedTeam),makePlayer(0,255,370,selectedTeam),makePlayer(1,745,250,cpuTeam),makePlayer(1,745,370,cpuTeam)]}else{players=[makePlayer(0,270,310,selectedTeam),makePlayer(1,730,310,cpuTeam)]}keepers=[makeKeeper(0,72,310),makeKeeper(1,928,310)];effects=[];kickoffGrace=afterGoal?1.25:1.8;}
-function start(){if(!assetsReady)return;cpuTeam=(selectedTeam+1+Math.floor(Math.random()*(TEAM_DEFS.length-1)))%TEAM_DEFS.length;score=[0,0];time=90;message='KICK OFF!';messageLife=1.8;reset();running=true;last=performance.now();menu.style.display='none';touchUi.hidden=false;requestAnimationFrame(loop)}
+function start(){if(!assetsReady)return;initAudio();sfx('start');cpuTeam=(selectedTeam+1+Math.floor(Math.random()*(TEAM_DEFS.length-1)))%TEAM_DEFS.length;score=[0,0];time=90;message='KICK OFF!';messageLife=1.8;reset();running=true;last=performance.now();menu.style.display='none';touchUi.hidden=false;requestAnimationFrame(loop)}
 function inputVector(){let x=(keys.has('KeyD')||keys.has('ArrowRight')?1:0)-(keys.has('KeyA')||keys.has('ArrowLeft')?1:0)+joy.x,y=(keys.has('KeyS')||keys.has('ArrowDown')?1:0)-(keys.has('KeyW')||keys.has('ArrowUp')?1:0)+joy.y;const d=Math.hypot(x,y);return d>1?{x:x/d,y:y/d}:{x,y}}
 function kick(p,variant='normal'){
   if(p.kickCd>0||p.down>0||p.stun>0||p.slide>0||p.dropkick>0)return;
@@ -88,7 +129,7 @@ function kick(p,variant='normal'){
   const recoil=just?340:(dashKick?720:260);p.vx-=dir.x*recoil;p.vy-=dir.y*recoil;p.dash=0;
   if(p.z>0){p.vz=Math.min(p.vz,20);p.vx-=dir.x*35;p.vy-=dir.y*35}
   p.stun=Math.max(p.stun,just?.68:.56);p.inv=Math.max(p.inv,p.stun+.28);p.kickGuard=.08;
-  effects.push({x:ball.x,y:ball.y,life:.35,max:.35,just});
+  effects.push({x:ball.x,y:ball.y,life:.35,max:.35,just});sfx((just||dashKick)?'powerKick':'kick',dashKick?1.35:just?1.15:1);
   if(just){message='JUST KICK!';messageLife=.55}else if(dashKick){message='DASH KICK!';messageLife=.45}
 }
 function startDash(p,input){
@@ -99,7 +140,7 @@ function startDash(p,input){
   p.dash=.28;p.dashCd=.72;p.dashDirX=dir.x;p.dashDirY=dir.y;p.aimX=dir.x;p.aimY=dir.y;
   p.vx=dir.x*650;p.vy=dir.y*650;
   // ジャンプ後にDを押した場合も、次の空中キックを最強技として扱う。
-  if(airborne)p.dashJump=Math.max(p.dashJump,.65);
+  if(airborne)p.dashJump=Math.max(p.dashJump,.65);sfx('dash');
 }
 function startDropKick(p){
   if(p.z<8||p.dropkick>0||p.down>0||p.stun>0)return;
@@ -107,7 +148,7 @@ function startDropKick(p){
   const superMove=p.dashJump>0;
   p.dropkick=.48;p.dropkickPower=superMove?4:3;p.slideDirX=dir.x;p.slideDirY=dir.y;p.slideHits=new Set();p.slideBallHit=false;
   p.vx=dir.x*(superMove?980:790);p.vy=dir.y*(superMove?980:790);p.vz=Math.min(p.vz,-80);p.inv=Math.max(p.inv,.55);
-  message=superMove?'DASH JUMP DROP KICK!':'JUMP KICK!';messageLife=.65;
+  message=superMove?'DASH JUMP DROP KICK!':'JUMP KICK!';messageLife=.65;sfx('dash',superMove?1.25:1);
 }
 function startSlide(p,dashVariant=false){
   if(p.z>8){startDropKick(p);return}
@@ -123,7 +164,7 @@ function startSlide(p,dashVariant=false){
   let dir=norm(tx-p.x,ty-p.y);
   if(Math.hypot(tx-p.x,ty-p.y)<1)dir={x:p.aimX||(p.side?-1:1),y:p.aimY||0};
   p.slide=dashVariant?.62:.46;p.slideCd=1.05;p.slideDirX=dir.x;p.slideDirY=dir.y;p.slideHits=new Set();p.slideBallHit=false;p.slidePower=dashVariant?4:2;p.dash=0;
-  p.vx=dir.x*(dashVariant?930:760);p.vy=dir.y*(dashVariant?930:760);p.aimX=dir.x;p.aimY=dir.y;p.inv=Math.max(p.inv,.5);
+  p.vx=dir.x*(dashVariant?930:760);p.vy=dir.y*(dashVariant?930:760);p.aimX=dir.x;p.aimY=dir.y;p.inv=Math.max(p.inv,.5);sfx('dash',dashVariant?1.2:.8);
 }
 function action(p){
   if(p.down>0||p.stun>0)return;
@@ -140,7 +181,7 @@ function slideCollisions(p){
   if(!p.slideBallHit&&Math.abs(ball.z-p.z)<105&&Math.hypot(ball.x-p.x,ball.y-p.y)<p.r+ball.r+18){
     p.slideBallHit=true;
     const shot=drop?(power>=4?1120:790):(power>=4?820:410);ball.vx=dir.x*shot;ball.vy=dir.y*shot;ball.vz=Math.max(drop?(power>=4?930:690):(power>=4?650:455),Math.abs(ball.vz)*.35+340);
-    ball.powerTier=power;ball.special=.18;ball.squash=.17;ball.squashAngle=Math.atan2(dir.y,dir.x);ball.fieldLaunchTime=drop?(power>=4?2:1):(power>=4?1:0);
+    ball.powerTier=power;ball.special=.18;ball.squash=.17;ball.squashAngle=Math.atan2(dir.y,dir.x);ball.fieldLaunchTime=drop?(power>=4?2:1):(power>=4?1:0);sfx(power>=4?'powerKick':'kick',power>=4?1.45:1.1);
     const recoil=drop?(power>=4?1450:980):(power>=4?880:570);p.vx=-dir.x*recoil;p.vy=-dir.y*recoil;p.vz=drop?(power>=4?470:340):(power>=4?250:170);p.inv=Math.max(p.inv,.72);p.slide=Math.max(p.slide,.38);if(drop){p.dropkick=.38;p.down=Math.max(p.down,power>=4?1.55:1.05)}
   }
   const targets=[...players.filter(x=>x!==p&&x.side!==p.side),...keepers.filter(x=>x.side!==p.side)];
@@ -150,7 +191,7 @@ function slideCollisions(p){
     if(Math.hypot(t.x-p.x,t.y-p.y)>p.r+t.r+(drop?46:26))continue;
     p.slideHits.add(t);
     const superDrop=drop&&power>=4,dashSlide=!drop&&power>=4;if(superDrop){launchOffscreen(t,dir)}else{const hitForce=drop?1050:(dashSlide?980:620);const downTime=drop?1.65:(dashSlide?1.35:.78);t.down=Math.max(t.down,downTime);t.stun=0;t.inv=Math.max(t.inv,downTime+.25);t.vx=dir.x*hitForce;t.vy=dir.y*hitForce;t.vz=Math.max(t.vz||0,drop?390:(dashSlide?320:220))}
-    if('dive' in t)t.dive=.45;
+    if('dive' in t)t.dive=.45;sfx('hit',power>=4?1.35:1);
   }
 }
 function launchOffscreen(t,dir,awaySeconds=3){
@@ -175,7 +216,7 @@ function updateOffscreen(t,dt){
   }
   return false;
 }
-function jump(p,dashVariant=false){if(p.jumpCd||p.down||p.stun||p.z>1||p.jumpPrep>0||p.dropkick>0)return;p.jumpPrep=dashVariant?.06:.11;p.pendingJump=dashVariant?'dash':true;p.jumpCd=.48;if(dashVariant){p.dashJump=.65;p.vx=p.dashDirX*690;p.vy=p.dashDirY*690;p.dash=0}}
+function jump(p,dashVariant=false){if(p.jumpCd||p.down||p.stun||p.z>1||p.jumpPrep>0||p.dropkick>0)return;p.jumpPrep=dashVariant?.06:.11;p.pendingJump=dashVariant?'dash':true;p.jumpCd=.48;sfx('jump');if(dashVariant){p.dashJump=.65;p.vx=p.dashDirX*690;p.vy=p.dashDirY*690;p.dash=0}}
 function movePlayer(p,dt,input){
   if(updateOffscreen(p,dt))return;
   p.kickCd=Math.max(0,p.kickCd-dt);p.kickFx=Math.max(0,p.kickFx-dt);p.jumpCd=Math.max(0,p.jumpCd-dt);p.slideCd=Math.max(0,p.slideCd-dt);p.dashCd=Math.max(0,p.dashCd-dt);p.dash=Math.max(0,p.dash-dt);p.dashJump=Math.max(0,p.dashJump-dt);p.dropkick=Math.max(0,p.dropkick-dt);
@@ -236,7 +277,7 @@ function hitPerson(p,keeper=false){if(p.hidden||p.offscreen!==0||p.returnRun>0)r
   const reflected=norm(rvx,rvy),rebound=impactSpeed*(keeper?.52:.64);
   ball.vx=reflected.x*rebound;ball.vy=reflected.y*rebound;
   ball.vz=Math.max(ball.vz,keeper?(strong?330:205):(strong?300:185));
-  ball.squash=.18;ball.squashAngle=Math.atan2(n.y,n.x);
+  ball.squash=.18;ball.squashAngle=Math.atan2(n.y,n.x);sfx('hit',strong?1.3:Math.max(.55,impactSpeed/420));
 
   // ジャンプ中のキーパーは、球威に関係なくセーブの反動でゴールと反対側へ大きく飛ばされる。
   const airborneKeeperSave=keeper&&p.z>8;
@@ -280,22 +321,22 @@ function ballUpdate(dt){
   // 横方向は重い芝上の大玉らしく、蹴った直後から目に見えて減速する。
   ball.vx*=Math.pow(.982,dt*60);ball.vy*=Math.pow(.982,dt*60);ball.spin+=Math.hypot(ball.vx,ball.vy)*dt*.007;
   ball.squash=Math.max(0,ball.squash-dt);ball.special=Math.max(0,ball.special-dt);
-  if(ball.z<GROUND){ball.z=GROUND;if(Math.abs(ball.vz)>95){ball.vz=-ball.vz*.60;ball.squash=.12;ball.squashAngle=Math.PI/2}else ball.vz=0;ball.vx*=.93;ball.vy*=.93}
-  if(ball.y-ball.r<TOP){ball.y=TOP+ball.r;ball.vy=Math.abs(ball.vy)*.84;ball.squash=.1;ball.squashAngle=Math.PI/2}
-  if(ball.y+ball.r>BOTTOM){ball.y=BOTTOM-ball.r;ball.vy=-Math.abs(ball.vy)*.84;ball.squash=.1;ball.squashAngle=Math.PI/2}
+  if(ball.z<GROUND){ball.z=GROUND;if(Math.abs(ball.vz)>95){sfx('ground',Math.min(1.4,Math.abs(ball.vz)/520));ball.vz=-ball.vz*.60;ball.squash=.12;ball.squashAngle=Math.PI/2}else ball.vz=0;ball.vx*=.93;ball.vy*=.93}
+  if(ball.y-ball.r<TOP){ball.y=TOP+ball.r;sfx('wall',Math.min(1.3,Math.abs(ball.vy)/500));ball.vy=Math.abs(ball.vy)*.84;ball.squash=.1;ball.squashAngle=Math.PI/2}
+  if(ball.y+ball.r>BOTTOM){ball.y=BOTTOM-ball.r;sfx('wall',Math.min(1.3,Math.abs(ball.vy)/500));ball.vy=-Math.abs(ball.vy)*.84;ball.squash=.1;ball.squashAngle=Math.PI/2}
   const mouth=ball.y>GOAL_TOP&&ball.y<GOAL_BOTTOM;
   const canEnter=mouth&&ball.z<GOAL_HEIGHT;
   // ゴール口でもクロスバーより高い球は、ゴール側の壁でフィールドへ跳ね返す。
   if(!canEnter){
-    if(ball.x-ball.r<45){ball.x=45+ball.r;ball.vx=Math.abs(ball.vx)*.78;ball.vz=Math.max(ball.vz,55);ball.squash=.12;ball.squashAngle=0}
-    else if(ball.x+ball.r>955){ball.x=955-ball.r;ball.vx=-Math.abs(ball.vx)*.78;ball.vz=Math.max(ball.vz,55);ball.squash=.12;ball.squashAngle=0}
+    if(ball.x-ball.r<45){ball.x=45+ball.r;sfx('wall',Math.min(1.4,Math.abs(ball.vx)/500));ball.vx=Math.abs(ball.vx)*.78;ball.vz=Math.max(ball.vz,55);ball.squash=.12;ball.squashAngle=0}
+    else if(ball.x+ball.r>955){ball.x=955-ball.r;sfx('wall',Math.min(1.4,Math.abs(ball.vx)/500));ball.vx=-Math.abs(ball.vx)*.78;ball.vz=Math.max(ball.vz,55);ball.squash=.12;ball.squashAngle=0}
   }
   if(canEnter){if(ball.x<-15)goal(1);else if(ball.x>1015)goal(0)}
   if(Math.hypot(ball.vx,ball.vy)<45&&ball.z<8){ball.powerTier=0;ball.fieldLaunchTime=0}
 }
-function goal(team){score[team]++;message=team===0?'GOAL!':'CPU GOAL';messageLife=1.4;if(score[team]>=3){running=false;setTimeout(()=>showMenu(team===0?'勝利！ 同じチームでもう一度遊べます。':'敗北… チームを選び直して再挑戦！'),900)}else reset(true)}
+function goal(team){score[team]++;sfx('goal',team===0?1.25:1);message=team===0?'GOAL!':'CPU GOAL';messageLife=1.4;if(score[team]>=3){running=false;setTimeout(()=>sfx(team===0?'end':'lose'),420);setTimeout(()=>showMenu(team===0?'勝利！ 同じチームでもう一度遊べます。':'敗北… チームを選び直して再挑戦！'),900)}else reset(true)}
 function showMenu(text){menu.style.display='grid';touchUi.hidden=true;menuMessage.textContent=text}
-function update(dt){time=Math.max(0,time-dt);kickoffGrace=Math.max(0,kickoffGrace-dt);messageLife=Math.max(0,messageLife-dt);effects.forEach(e=>e.life-=dt);effects=effects.filter(e=>e.life>0);const p=players[0],inp=inputVector();movePlayer(p,dt,inp);if(pressed.has('KeyI'))startDash(p,inp);if(pressed.has('KeyJ'))action(p);if(pressed.has('KeyK'))jump(p,p.dash>0);for(let i=1;i<players.length;i++){const ai=cpu(players[i],dt);movePlayer(players[i],dt,ai)}players.forEach(slideCollisions);ballUpdate(dt);players.forEach(x=>hitPerson(x));keepers.forEach(k=>keeper(k,dt));pressed.clear();if(time<=0){running=false;message=score[0]===score[1]?'DRAW':score[0]>score[1]?'WIN!':'LOSE';setTimeout(()=>showMenu(score[0]===score[1]?'引き分け。もう一度スタートできます。':score[0]>score[1]?'勝利！ もう一度スタートできます。':'敗北… 再挑戦！'),900)}}
+function update(dt){time=Math.max(0,time-dt);kickoffGrace=Math.max(0,kickoffGrace-dt);messageLife=Math.max(0,messageLife-dt);effects.forEach(e=>e.life-=dt);effects=effects.filter(e=>e.life>0);const p=players[0],inp=inputVector();movePlayer(p,dt,inp);if(pressed.has('KeyI'))startDash(p,inp);if(pressed.has('KeyJ'))action(p);if(pressed.has('KeyK'))jump(p,p.dash>0);for(let i=1;i<players.length;i++){const ai=cpu(players[i],dt);movePlayer(players[i],dt,ai)}players.forEach(slideCollisions);ballUpdate(dt);players.forEach(x=>hitPerson(x));keepers.forEach(k=>keeper(k,dt));pressed.clear();if(time<=0){running=false;sfx(score[0]>=score[1]?'end':'lose');message=score[0]===score[1]?'DRAW':score[0]>score[1]?'WIN!':'LOSE';setTimeout(()=>showMenu(score[0]===score[1]?'引き分け。もう一度スタートできます。':score[0]>score[1]?'勝利！ もう一度スタートできます。':'敗北… 再挑戦！'),900)}}
 function drawField(){ctx.fillStyle='#183d31';ctx.fillRect(0,0,W,H);for(let i=0;i<10;i++){ctx.fillStyle=i%2?'#1d4939':'#20503e';ctx.fillRect(i*100,TOP,100,BOTTOM-TOP)}ctx.strokeStyle='#dbeed5aa';ctx.lineWidth=5;ctx.strokeRect(45,TOP,910,BOTTOM-TOP);ctx.beginPath();ctx.moveTo(500,TOP);ctx.lineTo(500,BOTTOM);ctx.stroke();ctx.beginPath();ctx.arc(500,310,88,0,Math.PI*2);ctx.stroke();ctx.fillStyle='#cfe8dd18';ctx.fillRect(45,GOAL_TOP,95,GOAL_BOTTOM-GOAL_TOP);ctx.fillRect(860,GOAL_TOP,95,GOAL_BOTTOM-GOAL_TOP);ctx.strokeStyle='#fff';ctx.lineWidth=8;ctx.strokeRect(4,GOAL_TOP,42,GOAL_BOTTOM-GOAL_TOP);ctx.strokeRect(954,GOAL_TOP,42,GOAL_BOTTOM-GOAL_TOP)}
 function shadow(x,y,z,r){ctx.fillStyle=`rgba(0,0,0,${.28-clamp(z/600,0,.18)})`;ctx.beginPath();ctx.ellipse(x,y+r*.7,r*(1-z/900),r*.28*(1-z/900),0,0,Math.PI*2);ctx.fill()}
 function playerState(p){if(p.returnRun>0)return'dash';if(p.crush>0)return'crush';if(p.dropkick>0)return'dropkick';if(p.slide>0)return'slide';if(p.down>0)return p.z>8?'fly':'down';if(p.stun>0)return'stumble';if(p.kickFx>0)return'kick';if(p.jumpPrep>0)return'jump_prep';if(p.z>1)return'jump';if(p.dash>0)return'dash';if(Math.hypot(p.vx,p.vy)>55)return'run';return'idle'}
@@ -325,7 +366,7 @@ function drawHud(){ctx.fillStyle='#07111dcc';ctx.fillRect(0,0,W,76);ctx.textAlig
 function draw(){drawField();keepers.forEach(k=>drawPerson(k,true));players.forEach(p=>{drawPerson(p);drawControlMarker(p)});drawBall();drawHud()}
 function loop(now){if(!running)return;try{const dt=Math.min(.033,(now-last)/1000||.016);last=now;update(dt);draw();requestAnimationFrame(loop)}catch(err){running=false;console.error(err);showMenu('ゲーム処理エラーが発生しました。ページを再読み込みしてください。');}}
 window.addEventListener('keydown',e=>{if(!keys.has(e.code))pressed.add(e.code);keys.add(e.code);if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Space'].includes(e.code))e.preventDefault()});window.addEventListener('keyup',e=>keys.delete(e.code));
-modeSelect.addEventListener('click',e=>{const b=e.target.closest('.mode-card');if(!b)return;matchMode=Number(b.dataset.mode)||1;modeSelect.querySelectorAll('.mode-card').forEach(x=>x.classList.toggle('selected',x===b));});
+modeSelect.addEventListener('click',e=>{const b=e.target.closest('.mode-card');if(!b)return;sfx('ui');matchMode=Number(b.dataset.mode)||1;modeSelect.querySelectorAll('.mode-card').forEach(x=>x.classList.toggle('selected',x===b));});
 startButton.addEventListener('click',start);
 document.addEventListener('contextmenu',e=>e.preventDefault(),{passive:false});document.addEventListener('selectstart',e=>e.preventDefault(),{passive:false});document.addEventListener('dragstart',e=>e.preventDefault(),{passive:false});
 function bindButton(id,code){const b=document.getElementById(id);const on=e=>{e.preventDefault();if(!keys.has(code))pressed.add(code);keys.add(code);b.classList.add('active');try{b.setPointerCapture(e.pointerId)}catch{}};const off=e=>{e.preventDefault();keys.delete(code);b.classList.remove('active')};b.addEventListener('pointerdown',on);b.addEventListener('pointerup',off);b.addEventListener('pointercancel',off)}bindButton('kickButton','KeyJ');bindButton('jumpButton','KeyK');bindButton('dashButton','KeyI');
